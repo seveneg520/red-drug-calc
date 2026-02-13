@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <link rel="manifest" href="manifest.json">
+        <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Anthra-Calc Pro</title>
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <style>
+        :root { --primary: #c62828; --bg: #f0f2f5; --card: #ffffff; --text: #333; }
+        body { font-family: -apple-system, system-ui, sans-serif; background: var(--bg); margin: 0; color: var(--text); padding-bottom: 50px; }
+        .header { background: var(--primary); color: white; padding: 20px; text-align: center; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        .container { max-width: 500px; margin: auto; padding: 15px; }
+        .card { background: var(--card); border-radius: 15px; padding: 18px; margin-bottom: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        h3 { margin-top: 0; font-size: 1.1em; display: flex; align-items: center; gap: 8px; color: var(--primary); }
+        
+        .input-group { margin-bottom: 12px; }
+        label { display: block; font-size: 0.85em; color: #666; margin-bottom: 4px; }
+        input, select { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 10px; font-size: 16px; box-sizing: border-box; outline: none; }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        
+        button { background: var(--primary); color: white; border: none; padding: 14px; border-radius: 10px; font-size: 16px; font-weight: bold; width: 100%; cursor: pointer; transition: 0.2s; }
+        button:active { transform: scale(0.96); opacity: 0.9; }
+        .btn-outline { background: white; color: #666; border: 1px solid #ddd; margin-top: 10px; }
+        
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 0.9em; }
+        th { border-bottom: 2px solid #eee; text-align: left; padding: 10px 5px; color: #888; }
+        td { border-bottom: 1px solid #eee; padding: 12px 5px; }
+        .delete-btn { color: #ff5252; background: none; width: auto; padding: 5px; font-size: 14px; }
+
+        .summary-banner { background: #37474f; color: white; padding: 20px; border-radius: 15px; text-align: center; position: sticky; bottom: 15px; z-index: 100; box-shadow: 0 -4px 10px rgba(0,0,0,0.1); }
+        .total-val { font-size: 2.2em; font-weight: 800; color: #ffeb3b; margin: 5px 0; }
+        .unit { font-size: 0.4em; color: #cfd8dc; }
+
+        /* 設定隱藏區 */
+        .settings { font-size: 0.8em; color: #999; text-align: right; margin-bottom: 10px; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <h1 style="margin:0; font-size: 1.2em;">小紅莓累積劑量助手</h1>
+</div>
+
+<div class="container">
+    <div class="card">
+        <h3>📏 病患體表面積 (BSA)</h3>
+        <div class="grid">
+            <div class="input-group">
+                <label>身高 (cm)</label>
+                <input type="number" id="h" placeholder="170" oninput="uiUpdate()">
+            </div>
+            <div class="input-group">
+                <label>體重 (kg)</label>
+                <input type="number" id="w" placeholder="65" oninput="uiUpdate()">
+            </div>
+        </div>
+        <div style="text-align: right; font-weight: bold;">
+            計算結果: <span id="bsaDisplay" style="color:var(--primary)">0.00</span> m²
+        </div>
+    </div>
+
+    <details class="card">
+        <summary style="font-size:0.9em; color:#666; cursor:pointer;">⚙️ 係數與過往劑量設定</summary>
+        <div style="margin-top:15px;" id="factorSettings">
+            </div>
+        <hr>
+        <div class="input-group">
+            <label>過往累積生涯劑量 (mg/m²)</label>
+            <input type="number" id="prevDose" value="0" oninput="uiUpdate()">
+        </div>
+    </details>
+
+    <div class="card">
+        <h3>💊 新增給藥紀錄</h3>
+        <div class="input-group">
+            <label>選擇紅藥種類</label>
+            <select id="drugSelect">
+                <option value="doxorubicin">Doxorubicin</option>
+                <option value="epirubicin">Epirubicin</option>
+                <option value="daunorubicin">Daunorubicin</option>
+                <option value="idarubicin">Idarubicin</option>
+                <option value="mitoxantrone">Mitoxantrone</option>
+            </select>
+        </div>
+        <div class="input-group">
+            <label>本次計畫劑量 (mg/m²)</label>
+            <input type="number" id="inputDose" placeholder="例如 50">
+        </div>
+        <button onclick="addRecord()">＋ 加入本次計算清單</button>
+    </div>
+
+    <div class="card" id="listCard" style="display:none;">
+        <h3>📋 本次給藥清單</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>藥品</th>
+                    <th>劑量</th>
+                    <th>等效(Dox)</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody id="recordTable"></tbody>
+        </table>
+        <button class="btn-outline" onclick="clearAll()">全部清空</button>
+    </div>
+
+    <div class="summary-banner">
+        <div style="font-size:0.9em; opacity:0.9;">生涯累積預估總劑量</div>
+        <div class="total-val" id="grandTotalDisplay">0.0<span class="unit"> mg/m²</span></div>
+        <div style="font-size:0.8em; color:#cfd8dc;" id="riskWarning">風險評估：正常</div>
+    </div>
+</div>
+
+<script>
+    // 1. 初始化資料
+    const defaultFactors = { doxorubicin: 1, epirubicin: 0.67, daunorubicin: 0.5, idarubicin: 5, mitoxantrone: 4 };
+    let factors = JSON.parse(localStorage.getItem('factors')) || defaultFactors;
+    let records = [];
+
+    // 2. 初始化介面
+    function init() {
+        const settingsDiv = document.getElementById('factorSettings');
+        for (let key in factors) {
+            settingsDiv.innerHTML += `
+                <div class="grid" style="margin-bottom:5px; align-items:center;">
+                    <span style="text-transform:capitalize; font-size:0.9em;">${key}</span>
+                    <input type="number" step="0.01" value="${factors[key]}" oninput="updateFactor('${key}', this.value)">
+                </div>
+            `;
+        }
+        uiUpdate();
+    }
+
+    function updateFactor(key, val) {
+        factors[key] = parseFloat(val) || 0;
+        localStorage.setItem('factors', JSON.stringify(factors));
+        uiUpdate();
+    }
+
+    // 3. 核心邏輯
+    function addRecord() {
+        const drug = document.getElementById('drugSelect').value;
+        const dose = parseFloat(document.getElementById('inputDose').value);
+        if (!dose) return;
+
+        records.push({ drug, dose, eq: dose * factors[drug] });
+        document.getElementById('inputDose').value = '';
+        uiUpdate();
+    }
+
+    function deleteRecord(index) {
+        records.splice(index, 1);
+        uiUpdate();
+    }
+
+    function clearAll() {
+        if(confirm("確定要清空本次清單嗎？")) {
+            records = [];
+            uiUpdate();
+        }
+    }
+
+    function uiUpdate() {
+        // BSA Mosteller
+        const h = parseFloat(document.getElementById('h').value) || 0;
+        const w = parseFloat(document.getElementById('w').value) || 0;
+        const bsa = (h > 0 && w > 0) ? Math.sqrt((h * w) / 3600) : 0;
+        document.getElementById('bsaDisplay').innerText = bsa.toFixed(2);
+
+        // Table
+        const table = document.getElementById('recordTable');
+        const listCard = document.getElementById('listCard');
+        table.innerHTML = '';
+        listCard.style.display = records.length ? 'block' : 'none';
+
+        let currentEqSum = 0;
+        records.forEach((r, i) => {
+            currentEqSum += r.eq;
+            table.innerHTML += `
+                <tr>
+                    <td style="text-transform:capitalize;">${r.drug}</td>
+                    <td>${r.dose}</td>
+                    <td>${r.eq.toFixed(1)}</td>
+                    <td><button class="delete-btn" onclick="deleteRecord(${i})">移除</button></td>
+                </tr>
+            `;
+        });
+
+        // Grand Total
+        const prev = parseFloat(document.getElementById('prevDose').value) || 0;
+        const grandTotal = currentEqSum + prev;
+        document.getElementById('grandTotalDisplay').innerHTML = `${grandTotal.toFixed(1)}<span class="unit"> mg/m²</span>`;
+
+        // Risk Warning
+        const warning = document.getElementById('riskWarning');
+        if (grandTotal >= 450) {
+            warning.innerText = "⚠️ 高風險：已超過生涯建議上限 (450 mg/m²)";
+            warning.style.color = "#ff5252";
+        } else if (grandTotal >= 250) {
+            warning.innerText = "📢 中風險：建議加強追蹤心臟功能";
+            warning.style.color = "#ffeb3b";
+        } else {
+            warning.innerText = "✅ 低風險：目前仍在安全範圍內";
+            warning.style.color = "#cfd8dc";
+        }
+    }
+
+    init();
+</script>
+
+</body>
+</html>

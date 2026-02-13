@@ -1,0 +1,21 @@
+{
+  "name": "小紅莓累積劑量助手",
+  "short_name": "紅藥計算",
+  "description": "臨床藥師專用：化療藥物心臟毒性等效劑量累計工具",
+  "start_url": "RedDrugApp.html",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#c62828",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
